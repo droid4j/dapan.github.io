@@ -179,6 +179,98 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block home" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://www.acoala.com/2020/02/22/%E6%B3%A8%E8%A7%A3-%E5%8F%8D%E5%B0%84%E7%9A%84%E5%A5%87%E6%80%9D%E5%A6%99%E6%83%B3/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="大盼">
+      <meta itemprop="description" content="学会学习再学习">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="大盼的个人博客">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          
+            <a href="/2020/02/22/%E6%B3%A8%E8%A7%A3-%E5%8F%8D%E5%B0%84%E7%9A%84%E5%A5%87%E6%80%9D%E5%A6%99%E6%83%B3/" class="post-title-link" itemprop="url">注解+反射的奇思妙想</a>
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2020-02-22 07:24:13 / 修改时间：17:12:47" itemprop="dateCreated datePublished" datetime="2020-02-22T07:24:13+08:00">2020-02-22</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%8F%8D%E5%B0%84/" itemprop="url" rel="index">
+                    <span itemprop="name">反射</span>
+                  </a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%B3%A8%E8%A7%A3/" itemprop="url" rel="index">
+                    <span itemprop="name">注解</span>
+                  </a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>在 <a href="http://blog.acoala.com/2020/02/21/链式调用封装反射API/" target="_blank" rel="noopener">链式调用封装反射API</a> 一文中，我们征服了 Java 反射。但是它太粗犷了，能不能细腻些？当然！本篇就带你领略下在注解的协助下，反射那些好玩的事。</p>
+<blockquote>
+<p>注意：本篇只是注解+反射的最小化实现。只介绍这种思想，想要应用到项目中，还有很多的工作要完成。所以，仅供学习参考，切勿直接应用到项目中。</p>
+</blockquote>
+<h1 id="一、什么是注解"><a href="#一、什么是注解" class="headerlink" title="一、什么是注解"></a>一、什么是注解</h1><p>注解就像日常生活中的标签，衣服的标签上有价格；食品的标签上有价格；看的书也有价格。这类标签具有实效性，出厂时的定价就已经确定，除了促销活动，它的价格，就是签标上的数字，当我们买回来之前它有意义，对于买回来穿到身上的衣服，标签就没有意义了。</p>
+<p>所以，我们这里说的标签，有两层含义：1. 它用来记录某些信息，比如价格；2. 它有实效性，结帐后，标签的用处就算结束。</p>
+<p>在程序中，这个标签长什么样子？我们先来看一个简单的 @Override：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">MainActivity</span> <span class="keyword">extends</span> <span class="title">AppCompatActivity</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">onCreate</span><span class="params">(Bundle savedInstanceState)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>.onCreate(savedInstanceState);</span><br><span class="line">        setContentView(R.layout.activity_main);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里的 @Override 就是注解，这个注解告诉编译器，onCreate() 方法重写自父类。</p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/2020/02/22/%E6%B3%A8%E8%A7%A3-%E5%8F%8D%E5%B0%84%E7%9A%84%E5%A5%87%E6%80%9D%E5%A6%99%E6%83%B3/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+        
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block home" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="http://www.acoala.com/2020/02/21/%E9%93%BE%E5%BC%8F%E8%B0%83%E7%94%A8%E5%B0%81%E8%A3%85%E5%8F%8D%E5%B0%84API/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -202,10 +294,16 @@
                 <i class="fa fa-calendar-o"></i>
               </span>
               <span class="post-meta-item-text">发表于</span>
-              
 
-              <time title="创建时间：2020-02-21 06:25:07 / 修改时间：06:53:47" itemprop="dateCreated datePublished" datetime="2020-02-21T06:25:07+08:00">2020-02-21</time>
+              <time title="创建时间：2020-02-21 06:25:07" itemprop="dateCreated datePublished" datetime="2020-02-21T06:25:07+08:00">2020-02-21</time>
             </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2020-02-22 09:56:59" itemprop="dateModified" datetime="2020-02-22T09:56:59+08:00">2020-02-22</time>
+              </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
                 <i class="fa fa-folder-o"></i>
@@ -569,14 +667,14 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">4</span>
+          <span class="site-state-item-count">5</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-count">5</span>
         <span class="site-state-item-name">分类</span></a>
       </div>
   </nav>

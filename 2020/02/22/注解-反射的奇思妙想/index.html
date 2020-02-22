@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/font-awesome.min.css">
+
+
+<script id="hexo-configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    hostname: new URL('http://www.acoala.com').hostname,
+    root: '/',
+    scheme: 'Pisces',
+    version: '7.7.0',
+    exturl: false,
+    sidebar: {"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},
+    copycode: {"enable":false,"show_result":false,"style":null},
+    back2top: {"enable":true,"sidebar":false,"scrollpercent":false},
+    bookmark: {"enable":false,"color":"#222","save":"auto"},
+    fancybox: false,
+    mediumzoom: false,
+    lazyload: false,
+    pangu: false,
+    comments: {"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},
+    algolia: {
+      appID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    },
+    localsearch: {"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},
+    path: '',
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}
+  };
+</script>
+
+  <meta name="description" content="在 链式调用封装反射API 一文中，我们征服了 Java 反射。但是它太粗犷了，能不能细腻些？当然！本篇就带你领略下在注解的协助下，反射那些好玩的事。  注意：本篇只是注解+反射的最小化实现。只介绍这种思想，想要应用到项目中，还有很多的工作要完成。所以，仅供学习参考，切勿直接应用到项目中。  一、什么是注解注解就像日常生活中的标签，衣服的标签上有价格；食品的标签上有价格；看的书也有价格。这类标签具">
+<meta property="og:type" content="article">
+<meta property="og:title" content="注解+反射的奇思妙想">
+<meta property="og:url" content="http://www.acoala.com/2020/02/22/%E6%B3%A8%E8%A7%A3-%E5%8F%8D%E5%B0%84%E7%9A%84%E5%A5%87%E6%80%9D%E5%A6%99%E6%83%B3/index.html">
+<meta property="og:site_name" content="大盼的个人博客">
+<meta property="og:description" content="在 链式调用封装反射API 一文中，我们征服了 Java 反射。但是它太粗犷了，能不能细腻些？当然！本篇就带你领略下在注解的协助下，反射那些好玩的事。  注意：本篇只是注解+反射的最小化实现。只介绍这种思想，想要应用到项目中，还有很多的工作要完成。所以，仅供学习参考，切勿直接应用到项目中。  一、什么是注解注解就像日常生活中的标签，衣服的标签上有价格；食品的标签上有价格；看的书也有价格。这类标签具">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2020-02-21T23:24:13.000Z">
+<meta property="article:modified_time" content="2020-02-22T09:12:47.560Z">
+<meta property="article:author" content="大盼">
+<meta property="article:tag" content="Android 开发 学习">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://www.acoala.com/2020/02/22/%E6%B3%A8%E8%A7%A3-%E5%8F%8D%E5%B0%84%E7%9A%84%E5%A5%87%E6%80%9D%E5%A6%99%E6%83%B3/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome: false,
+    isPost: true
+  };
+</script>
+
+  <title>注解+反射的奇思妙想 | 大盼的个人博客</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-meta">
+
+    <div>
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">大盼的个人博客</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+        <p class="site-subtitle">Android Developer</p>
+  </div>
+
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+</div>
+
+
+<nav class="site-nav">
+  
+  <ul id="menu" class="menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-fw fa-home"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-fw fa-user"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-fw fa-th"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-fw fa-archive"></i>归档</a>
+
+  </li>
+  </ul>
+
+</nav>
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content">
+            
+
+  <div class="posts-expand">
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block " lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://www.acoala.com/2020/02/22/%E6%B3%A8%E8%A7%A3-%E5%8F%8D%E5%B0%84%E7%9A%84%E5%A5%87%E6%80%9D%E5%A6%99%E6%83%B3/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="大盼">
+      <meta itemprop="description" content="学会学习再学习">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="大盼的个人博客">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          注解+反射的奇思妙想
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2020-02-22 07:24:13 / 修改时间：17:12:47" itemprop="dateCreated datePublished" datetime="2020-02-22T07:24:13+08:00">2020-02-22</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%8F%8D%E5%B0%84/" itemprop="url" rel="index">
+                    <span itemprop="name">反射</span>
+                  </a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%B3%A8%E8%A7%A3/" itemprop="url" rel="index">
+                    <span itemprop="name">注解</span>
+                  </a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>在 <a href="http://blog.acoala.com/2020/02/21/链式调用封装反射API/" target="_blank" rel="noopener">链式调用封装反射API</a> 一文中，我们征服了 Java 反射。但是它太粗犷了，能不能细腻些？当然！本篇就带你领略下在注解的协助下，反射那些好玩的事。</p>
+<blockquote>
+<p>注意：本篇只是注解+反射的最小化实现。只介绍这种思想，想要应用到项目中，还有很多的工作要完成。所以，仅供学习参考，切勿直接应用到项目中。</p>
+</blockquote>
+<h1 id="一、什么是注解"><a href="#一、什么是注解" class="headerlink" title="一、什么是注解"></a>一、什么是注解</h1><p>注解就像日常生活中的标签，衣服的标签上有价格；食品的标签上有价格；看的书也有价格。这类标签具有实效性，出厂时的定价就已经确定，除了促销活动，它的价格，就是签标上的数字，当我们买回来之前它有意义，对于买回来穿到身上的衣服，标签就没有意义了。</p>
+<p>所以，我们这里说的标签，有两层含义：1. 它用来记录某些信息，比如价格；2. 它有实效性，结帐后，标签的用处就算结束。</p>
+<p>在程序中，这个标签长什么样子？我们先来看一个简单的 @Override：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">MainActivity</span> <span class="keyword">extends</span> <span class="title">AppCompatActivity</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">onCreate</span><span class="params">(Bundle savedInstanceState)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>.onCreate(savedInstanceState);</span><br><span class="line">        setContentView(R.layout.activity_main);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里的 @Override 就是注解，这个注解告诉编译器，onCreate() 方法重写自父类。</p>
+<a id="more"></a>
+
+<h1 id="二、为什么要用注解"><a href="#二、为什么要用注解" class="headerlink" title="二、为什么要用注解"></a>二、为什么要用注解</h1><p>像上面的 @Override 就为了告诉编译器，对这个方法进行安全性检查的；</p>
+<p>在我们日常开发中，经常会遇到获取组件，并对它进行操作的。如果一个页面非常复杂，就会出现很 <code>findViewById</code> 的操作，这些模板代码即不优雅，写起来浪费时间。那么有没有更优雅的办法呢？</p>
+<p>那就是本文的重点，通过反射，获取运行时注解，拿到属性上的id，然后由我们的工具来完成 <code>findViewById</code> 的操作。</p>
+<p>在一个大项目中，实现一套这样的工具，节省的时间是非常乐观的，接下来进入实操部分。</p>
+<h1 id="三、如何实现"><a href="#三、如何实现" class="headerlink" title="三、如何实现"></a>三、如何实现</h1><h2 id="3-1-用法"><a href="#3-1-用法" class="headerlink" title="3.1 用法"></a>3.1 用法</h2><p>在实现之前，先看一下它的用法，先从感观上对它有个认识。</p>
+<p><strong>常规写法</strong></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">MainActivity</span> <span class="keyword">extends</span> <span class="title">AppCompatActivity</span> </span>&#123;</span><br><span class="line">    <span class="keyword">private</span> TextView tv;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">onCreate</span><span class="params">(Bundle savedInstanceState)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>.onCreate(savedInstanceState);</span><br><span class="line">        setContentView(R.layout.activity_main);</span><br><span class="line"></span><br><span class="line">        tv = findViewById(R.id.tv);</span><br><span class="line">        tv.setText(<span class="string">"inject by ViewUtils!"</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>经常这么看了，无需解释。</p>
+<p><strong>注解写法</strong></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">MainActivity</span> <span class="keyword">extends</span> <span class="title">AppCompatActivity</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@ViewById</span>(R.id.tv) <span class="keyword">private</span> TextView tv;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">onCreate</span><span class="params">(Bundle savedInstanceState)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>.onCreate(savedInstanceState);</span><br><span class="line">        setContentView(R.layout.activity_main);</span><br><span class="line"></span><br><span class="line">        ViewUtils.inject(<span class="keyword">this</span>);</span><br><span class="line">        tv.setText(<span class="string">"inject by ViewUtils!"</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>在属性 tv 上，增加 <code>@ViewById</code> 注解，如果只是增加一个注解，毫无意义，它需要下面那句代码的配合。</p>
+<p>在这里，我们已经没有 <code>findViewById</code> 的身影，这不代表不需要 <code>findViewById</code> 。只不过我们将它封装到 <code>ViewUtils</code> 中而已。</p>
+<h2 id="3-2-自定义注解"><a href="#3-2-自定义注解" class="headerlink" title="3.2 自定义注解"></a>3.2 自定义注解</h2><p>在实现 <code>ViewUtils</code> 之前，我们先将<code>ViewById</code> 创建出来。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Target</span>(ElementType.FIELD)</span><br><span class="line"><span class="meta">@Retention</span>(RetentionPolicy.RUNTIME)</span><br><span class="line"><span class="keyword">public</span> <span class="meta">@interface</span> ViewById &#123;</span><br><span class="line">    <span class="function"><span class="keyword">int</span> <span class="title">value</span><span class="params">()</span></span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>它跟接口很像，里面定义的方法，不需要有实现。</p>
+<p>除了比接口关键字（interface）多了一个 <code>@</code> 符外，它还有两个注解。</p>
+<p>下面，分别介绍下：</p>
+<p><strong>@Target</strong>：表示打在什么位置上，对于 Java 的类，可以大致分为：<code>类</code>、<code>方法</code>、<code>属性</code> 等；对应的 <code>ElementType</code> 分别为：<code>TYPE</code>、<code>METHOD</code>、<code>FIELD</code>。</p>
+<p><strong>@Retention</strong>：表示时效性，对于一个 Java 类，它的生命周期有三个阶段：<code>.java 时期</code>，<code>.class 时期</code>，装载到JVM使用的<code>运行时期</code>；对于 <code>RetentionPolicy</code> 分别为： <code>SOURCE</code>，<code>CLASS</code>，<code>RUNTIME</code>。</p>
+<p>看了上面的解释，我们就知道 ViewById 是一个运行时的注解，并且它只能使用在属性上。</p>
+<blockquote>
+<p>在这里，我们还可以看出，注解上可以添加注解，这个添加在注解上的注解被称为：<strong>元注解</strong>。</p>
+</blockquote>
+<h2 id="3-3-ViewUtils的实现"><a href="#3-3-ViewUtils的实现" class="headerlink" title="3.3 ViewUtils的实现"></a>3.3 ViewUtils的实现</h2><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">ViewUtils</span> </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">inject</span><span class="params">(<span class="keyword">final</span> Activity activity)</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">        Field[] fields = activity.getClass().getDeclaredFields(); <span class="comment">// 1</span></span><br><span class="line">        <span class="keyword">for</span> (Field field : fields) &#123;</span><br><span class="line">            ViewById viewById = field.getAnnotation(ViewById<span class="class">.<span class="keyword">class</span>)</span>; <span class="comment">// 2</span></span><br><span class="line">            <span class="keyword">if</span> (viewById != <span class="keyword">null</span>) &#123;</span><br><span class="line">                <span class="keyword">int</span> id = viewById.value();</span><br><span class="line">                View view = activity.findViewById(id); <span class="comment">// 3</span></span><br><span class="line">                <span class="keyword">try</span> &#123;</span><br><span class="line">                    <span class="keyword">if</span> (!field.isAccessible()) field.setAccessible(<span class="keyword">true</span>);</span><br><span class="line">                    field.set(activity, view); <span class="comment">// 4</span></span><br><span class="line">                &#125; <span class="keyword">catch</span> (IllegalAccessException e) &#123;</span><br><span class="line">                    e.printStackTrace();</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>代码中，已经为关键步骤添加注释，下面分别说明它的含义：</p>
+<ol>
+<li>获取当前类的所有属性</li>
+<li>获取 Field 上的 ViewById 注解，有则执行 if 代码块，没有，继续循环</li>
+<li>执行 findViewById 方法，这说明，找id这个事情，工具帮我们做了</li>
+<li>注入，为某个对象（activity）的属性（field）注解值（view）</li>
+</ol>
+<p>到此，本文就算讲完了。但是，一心提升level的你，肯定不满足于此，还有哪些骚事可做？</p>
+<h1 id="四、进阶"><a href="#四、进阶" class="headerlink" title="四、进阶"></a>四、进阶</h1><p>我们在 <a href="http://blog.acoala.com/2020/02/21/链式调用封装反射API/" target="_blank" rel="noopener">链式调用封装反射调API</a> 这篇文章中，我们将 Java 反射API，进行了封装，这一小小的操作，使人人学会了反射。那进阶部分，自然是对我们的注解框架也进行再次的封装。</p>
+<h2 id="4-1-分析"><a href="#4-1-分析" class="headerlink" title="4.1 分析"></a>4.1 分析</h2><p>先来看下 <code>ViewUtils.inject()</code> 的实现</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">inject</span><span class="params">(<span class="keyword">final</span> Activity activity)</span> </span>&#123;</span><br><span class="line">    Field[] fields = activity.getClass().getDeclaredFields(); <span class="comment">// 1</span></span><br><span class="line">    <span class="keyword">for</span> (Field field : fields) &#123;</span><br><span class="line">        ViewById viewById = field.getAnnotation(ViewById<span class="class">.<span class="keyword">class</span>)</span>; <span class="comment">// 2</span></span><br><span class="line">        <span class="keyword">if</span> (viewById != <span class="keyword">null</span>) &#123;</span><br><span class="line">            <span class="keyword">int</span> id = viewById.value();</span><br><span class="line">            View view = activity.findViewById(id); <span class="comment">// 3</span></span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                <span class="keyword">if</span> (!field.isAccessible()) field.setAccessible(<span class="keyword">true</span>);</span><br><span class="line">                    field.set(activity, view); <span class="comment">// 4</span></span><br><span class="line">            &#125; <span class="keyword">catch</span> (IllegalAccessException e) &#123;</span><br><span class="line">                e.printStackTrace();</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>通过分析，我们不难发现，<code>注释1</code> 和 <code>注释4</code> 都是与业务无关的反射操作。只有 <code>注释2</code> 和 <code>注释3</code> 与我们这里的业务有关。</p>
+<p>为了方便理解实现部分的代码，我们对上面的代码进行一下调整。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">inject</span><span class="params">(<span class="keyword">final</span> Activity activity)</span> </span>&#123;</span><br><span class="line">    Field[] fields = activity.getClass().getDeclaredFields(); <span class="comment">// 1</span></span><br><span class="line">    <span class="keyword">for</span> (Field field : fields) &#123;</span><br><span class="line">        View result = <span class="keyword">null</span>;</span><br><span class="line">        </span><br><span class="line">        <span class="comment">// ---------------------------</span></span><br><span class="line">        ViewById viewById = field.getAnnotation(ViewById<span class="class">.<span class="keyword">class</span>)</span>; <span class="comment">// 2</span></span><br><span class="line">        <span class="keyword">if</span> (viewById != <span class="keyword">null</span>) &#123;</span><br><span class="line">            <span class="keyword">int</span> id = viewById.value();</span><br><span class="line">            result = activity.findViewById(id); <span class="comment">// 3</span></span><br><span class="line">        &#125;</span><br><span class="line">     	  <span class="comment">// ---------------------------</span></span><br><span class="line">        </span><br><span class="line">        <span class="keyword">if</span> (result != <span class="keyword">null</span>) &#123;</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                <span class="keyword">if</span> (!field.isAccessible()) field.setAccessible(<span class="keyword">true</span>);</span><br><span class="line">                field.set(activity, result); <span class="comment">// 4</span></span><br><span class="line">            &#125; <span class="keyword">catch</span> (IllegalAccessException e) &#123;</span><br><span class="line">                e.printStackTrace();</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong><u>这一步非常关键，它将模板代码与业务代码进行了分离，目的就是进一步解耦。</u></strong></p>
+<h2 id="4-2-抽象"><a href="#4-2-抽象" class="headerlink" title="4.2 抽象"></a>4.2 抽象</h2><p>我们将以上逻辑抽象为以下伪代码</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">inject</span><span class="params">(<span class="keyword">final</span> Activity activity)</span> </span>&#123;</span><br><span class="line">    获取activity中所有属性; <span class="comment">// 1</span></span><br><span class="line">    业务处理; <span class="comment">// 2</span></span><br><span class="line">    为找到的属性注解值; <span class="comment">// 3</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>注释1：注意是所有属性，否则private修饰的属性无法操作成功</p>
+<p>经过这一步的抽象，我们可以将 <code>注释1</code> 和 <code>注释3</code> 的逻辑，移到 Reflect.java 中，然后为外界提供一个处理业务的回调接口即可。</p>
+<p>在实现之前，先来看下修改后的伪代码</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">Reflect.inject(被反射的类).set(要注释到哪个对象, <span class="keyword">new</span> Reflect.Callback() &#123;</span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line">        <span class="function"><span class="keyword">public</span> Object <span class="title">getValue</span><span class="params">(Field field)</span> </span>&#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">null</span>; <span class="comment">// 1</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;);</span><br></pre></td></tr></table></figure>
+
+<p>注释1：业务逻辑，比如我们这里的获取field上的 ViewById 注解等</p>
+<h2 id="4-3-实现"><a href="#4-3-实现" class="headerlink" title="4.3 实现"></a>4.3 实现</h2><p>直接将 github 上的 <a href="https://github.com/droid4j/Reflect/blob/master/src/cn/dapan/reflect/Reflect.java" target="_blank" rel="noopener">Reflect</a> 拷贝一份，增加如下方法：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> cn.dapan.reflect;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Reflect</span> </span>&#123;</span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 获取Field并注入，业务逻辑由 Callback 实现</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> callback</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> &lt;R&gt;</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">public</span> &lt;R&gt; <span class="function"><span class="keyword">void</span> <span class="title">set</span><span class="params">(Object target, Callback&lt;R&gt; callback)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span> (callback == <span class="keyword">null</span>) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(<span class="string">"callback must not null!"</span>);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="comment">// 1. 获取所有属性</span></span><br><span class="line">        Field[] fields = <span class="keyword">this</span>.clazz.getDeclaredFields();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> (Field field : fields) &#123;</span><br><span class="line">            R result = callback.getValue(field); <span class="comment">// 2 和 3 由业务层完成</span></span><br><span class="line">            <span class="keyword">if</span> (result != <span class="keyword">null</span>) &#123;</span><br><span class="line">                <span class="keyword">try</span> &#123;</span><br><span class="line">                    <span class="comment">// 4. 反射注入</span></span><br><span class="line">                    <span class="keyword">if</span> (!field.isAccessible()) field.setAccessible(<span class="keyword">true</span>);</span><br><span class="line">                    field.set(target, result);</span><br><span class="line">                &#125; <span class="keyword">catch</span> (IllegalAccessException e) &#123;</span><br><span class="line">                    e.printStackTrace();</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** 回调接口，实现业务逻辑 */</span></span><br><span class="line">    <span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">Callback</span>&lt;<span class="title">R</span>&gt; </span>&#123;</span><br><span class="line">        <span class="function">R <span class="title">getValue</span><span class="params">(Field field)</span></span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="4-4-重构-ViewUtils-inject"><a href="#4-4-重构-ViewUtils-inject" class="headerlink" title="4.4 重构 ViewUtils.inject()"></a>4.4 重构 ViewUtils.inject()</h2><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">ViewUtils</span> </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">inject</span><span class="params">(<span class="keyword">final</span> Activity activity)</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">        Reflect.inject(activity.getClass()).set(activity, <span class="keyword">new</span> Reflect.Callback&lt;View&gt;() &#123;</span><br><span class="line"></span><br><span class="line">            <span class="meta">@Override</span></span><br><span class="line">            <span class="function"><span class="keyword">public</span> View <span class="title">getValue</span><span class="params">(Field field)</span> </span>&#123;</span><br><span class="line">                View view = <span class="keyword">null</span>;</span><br><span class="line">                <span class="comment">// 2. 过滤 ViewById 注解</span></span><br><span class="line">                ViewById viewById = field.getAnnotation(ViewById<span class="class">.<span class="keyword">class</span>)</span>;</span><br><span class="line">                <span class="keyword">if</span> (viewById != <span class="keyword">null</span>) &#123;</span><br><span class="line">                    <span class="keyword">int</span> id = viewById.value();</span><br><span class="line">                    <span class="comment">// 3. findViewById</span></span><br><span class="line">                    view = activity.findViewById(id);</span><br><span class="line">                &#125;</span><br><span class="line">                <span class="keyword">return</span> view;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>重构后的注解框架，不再需要关心反射相关的API了，大大降低了我们使用反射的难度。</p>
+<p>还不赶紧用起来！</p>
+<p>github: <a href="https://github.com/droid4j/noFindViewById" target="_blank" rel="noopener">https://github.com/droid4j/noFindViewById</a></p>
+<h1 id="五、题外话"><a href="#五、题外话" class="headerlink" title="五、题外话"></a>五、题外话</h1><p>上面我们用到了 Reflect，不过是将代码拷贝过来的，有没有优雅点的办法？当然有了～～～</p>
+<p>出现上面拷贝的现象，有两个原因，其一，Reflect 库没有上传到 jcenter；其二，Reflect 库没有使用 gradle 工具。为了解决这个尴尬的局面，我又重新创建了 <a href="https://github.com/droid4j/reflectLib" target="_blank" rel="noopener">reflectLib</a> 库，内容一样，不过多介绍。主要是说下，怎么在项目中使用。</p>
+<p>第一步，克隆代码</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git clone https://github.com/droid4j/reflectLib</span><br></pre></td></tr></table></figure>
+
+<p>把它克隆到本地，最好是放到你的工程下。不然，在 <code>settings.gradle</code> 和 <code>build.gradle</code> 添加配置需要指定 reflectLib 所在目录。</p>
+<p>第二步，配置settings.gradle</p>
+<figure class="highlight groovy"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">include <span class="string">':app'</span>, <span class="string">':reflectLib'</span></span><br></pre></td></tr></table></figure>
+
+<p>第三步，build.gradle添加依赖</p>
+<figure class="highlight groovy"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">dependencies &#123;</span><br><span class="line">    implementation project(<span class="string">':reflectLib'</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>做完第三步操作后，点击 <code>Sync Project</code> 按钮，就可能享用了。</p>
+<p>再送你一招，如果你就是不想放到自己的工程下，有没有解决办法？当然，一并给你。</p>
+<p>配置 settings.gradle</p>
+<figure class="highlight groovy"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">include <span class="string">':reflectLib'</span></span><br><span class="line">project(<span class="string">':reflectLib'</span>).projectDir=<span class="keyword">new</span> File(<span class="string">"/Users/xxx/git/reflectLib"</span>)</span><br></pre></td></tr></table></figure>
+
+<p>其中 <code>/Users/xxx/git/reflectLib</code> 是存放 reflectLib 的绝对路径，相对路径也是支持的，不信，你去试下～</p>
+<p>build.gradle 不需要修改。点击 <code>Sync Project</code> 完成配置。</p>
+<p>最后的最后，说一下，关于我为什么不把 Reflect 传到 jcenter。</p>
+<p>在日常开发中，我们经常需要同步代码，因为网络的原因，远程仓库的下载速度总是不可控，为了避免关键时刻掉链子，我决定不往 jcenter 上传包。还有一个原因，既然选择开源，我就做的彻底点，大家拿到代码随便玩。对自己的行为负责即可。</p>
+<p>全文完。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2020/02/21/%E9%93%BE%E5%BC%8F%E8%B0%83%E7%94%A8%E5%B0%81%E8%A3%85%E5%8F%8D%E5%B0%84API/" rel="prev" title="链式调用封装反射调API">
+      <i class="fa fa-chevron-left"></i> 链式调用封装反射调API
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+  </div>
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let activeClass = CONFIG.comments.activeClass;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#一、什么是注解"><span class="nav-number">1.</span> <span class="nav-text">一、什么是注解</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#二、为什么要用注解"><span class="nav-number">2.</span> <span class="nav-text">二、为什么要用注解</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#三、如何实现"><span class="nav-number">3.</span> <span class="nav-text">三、如何实现</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#3-1-用法"><span class="nav-number">3.1.</span> <span class="nav-text">3.1 用法</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-2-自定义注解"><span class="nav-number">3.2.</span> <span class="nav-text">3.2 自定义注解</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-3-ViewUtils的实现"><span class="nav-number">3.3.</span> <span class="nav-text">3.3 ViewUtils的实现</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#四、进阶"><span class="nav-number">4.</span> <span class="nav-text">四、进阶</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#4-1-分析"><span class="nav-number">4.1.</span> <span class="nav-text">4.1 分析</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-2-抽象"><span class="nav-number">4.2.</span> <span class="nav-text">4.2 抽象</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-3-实现"><span class="nav-number">4.3.</span> <span class="nav-text">4.3 实现</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-4-重构-ViewUtils-inject"><span class="nav-number">4.4.</span> <span class="nav-text">4.4 重构 ViewUtils.inject()</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#五、题外话"><span class="nav-number">5.</span> <span class="nav-text">五、题外话</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">大盼</p>
+  <div class="site-description" itemprop="description">学会学习再学习</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">5</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">5</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://droid4j.github.io/droid4j.github.io/" title="GitHub → https:&#x2F;&#x2F;droid4j.github.io&#x2F;droid4j.github.io&#x2F;" rel="noopener" target="_blank"><i class="fa fa-fw fa-github"></i>GitHub</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">大盼</span>
+</div>
+  <div class="beian"><a href="http://www.beian.miit.gov.cn/" rel="noopener" target="_blank">京ICP备18015662号 </a>
+  </div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> 强力驱动 v4.2.0
+  </div>
+  <span class="post-meta-divider">|</span>
+  <div class="theme-info">主题 – <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> v7.7.0
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
